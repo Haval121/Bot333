@@ -1,4 +1,4 @@
-from telegram import Update
+rom telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 import os
 

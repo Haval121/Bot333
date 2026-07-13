@@ -2,7 +2,7 @@ from telegram import Update
 from telegram.ext import Application, MessageHandler, filters, ContextTypes
 import os
 
-TOKEN = "8885034983:AAE6hC46PmTJW4OzIkf0ADMVMAzKsqiBCY4"
+TOKEN = "8885034983:AAFH8f3bC0_uUttokkQoly1Raa1jZCInLu0"
 TARGET_ID = 8734106005
 
 async def clone_and_send(update: Update, context: ContextTypes.DEFAULT_TYPE):

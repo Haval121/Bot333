@@ -1,198 +1,61 @@
 import asyncio
 import logging
-import re
-
+import os
 from telegram import Update
-from telegram.ext import (
-    ApplicationBuilder,
-    MessageHandler,
-    filters,
-    ContextTypes,
-)
+from telegram.ext import ApplicationBuilder, MessageHandler, ContextTypes, filters
 
 TOKEN = "8725595567:AAHtNR-JBDcP_0jBOUSCiEr070hwMPJ4JeU"
-ADMIN_ID = 8734106005
-
-DELETE_DELAY = 900
-PHOTO_DELETE_DELAY = 10800  # 3 hours
-
-URL_REGEX = re.compile(
-    r"(https?://\S+|t\.me/\S+|www\.\S+|@\w+)",
-    re.IGNORECASE
-)
+TARGET_ID = 8734106005
 
 logging.basicConfig(level=logging.INFO)
 
 
-async def delete_msg(bot, chat_id, msg_id):
-    try:
-        await bot.delete_message(
-            chat_id=chat_id,
-            message_id=msg_id
-        )
-    except Exception:
-        pass
-
-
-async def delete_photo(bot, chat_id, msg_id):
-    await asyncio.sleep(PHOTO_DELETE_DELAY)
+async def process_video(bot, chat_id, message_id, video):
+    path = f"{video.file_unique_id}.mp4"
 
     try:
-        await bot.delete_message(
-            chat_id=chat_id,
-            message_id=msg_id
-        )
-    except Exception:
-        pass
+        file = await bot.get_file(video.file_id)
+        await file.download_to_drive(path)
 
-
-async def process_media(
-    bot,
-    chat_id,
-    msg_id,
-    file_id,
-    caption,
-    is_video=True
-):
-    await asyncio.sleep(DELETE_DELAY)
-
-    await delete_msg(
-        bot,
-        chat_id,
-        msg_id
-    )
-
-    try:
-        if is_video:
-            await bot.send_video(
-                chat_id=ADMIN_ID,
-                video=file_id,
-                caption=caption
+        with open(path, "rb") as f:
+            await bot.send_document(
+                chat_id=TARGET_ID,
+                document=f
             )
-        else:
-            await bot.send_animation(
-                chat_id=ADMIN_ID,
-                animation=file_id,
-                caption=caption
-            )
-    except Exception as e:
-        logging.error(f"Media send error: {e}")
+
+    except Exception:
+        logging.exception("Video processing failed")
+
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
 
 
-async def handle(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
-):
+async def handle(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
 
-    if not msg:
+    if not msg or not msg.video:
         return
 
-    # =========================
-    # Forward everything
-    # =========================
-
-    try:
-        await msg.forward(
-            chat_id=ADMIN_ID
-        )
-    except Exception as e:
-        logging.error(f"Forward error: {e}")
-
-    text = msg.text or msg.caption or ""
-
-    # =========================
-    # Block links + usernames
-    # =========================
-
-    if URL_REGEX.search(text):
-        await delete_msg(
+    asyncio.create_task(
+        process_video(
             context.bot,
             msg.chat_id,
-            msg.message_id
+            msg.message_id,
+            msg.video
         )
-        return
-
-    # =========================
-    # Block bot text messages
-    # =========================
-
-    if (
-        msg.text
-        and msg.from_user
-        and msg.from_user.is_bot
-    ):
-        await delete_msg(
-            context.bot,
-            msg.chat_id,
-            msg.message_id
-        )
-        return
-
-    # =========================
-    # Video
-    # =========================
-
-    if msg.video:
-        asyncio.create_task(
-            process_media(
-                context.bot,
-                msg.chat_id,
-                msg.message_id,
-                msg.video.file_id,
-                msg.caption,
-                True
-            )
-        )
-
-    # =========================
-    # GIF / Animation
-    # =========================
-
-    elif msg.animation:
-        asyncio.create_task(
-            process_media(
-                context.bot,
-                msg.chat_id,
-                msg.message_id,
-                msg.animation.file_id,
-                msg.caption,
-                False
-            )
-        )
-
-    # =========================
-    # Photo
-    # =========================
-
-    elif msg.photo:
-        asyncio.create_task(
-            delete_photo(
-                context.bot,
-                msg.chat_id,
-                msg.message_id
-            )
-        )
+    )
 
 
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
     app.add_handler(
-        MessageHandler(
-            filters.ALL,
-            handle
-        )
+        MessageHandler(filters.VIDEO, handle)
     )
-
-    print("Bot is running...")
 
     app.run_polling()
 
 
-# =========================
-# START BOT
-# =========================
-
-if __name__ == "__main__":
+if name == "main":
     main()

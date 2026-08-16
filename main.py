@@ -89,7 +89,7 @@ async def handle(
         return
 
     # =========================
-    # Forward everything
+    # Frward everything
     # =========================
 
     try:

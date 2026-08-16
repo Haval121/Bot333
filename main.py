@@ -21,7 +21,10 @@ URL_REGEX = re.compile(
     re.IGNORECASE
 )
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 async def delete_msg(bot, chat_id, msg_id):
@@ -30,8 +33,8 @@ async def delete_msg(bot, chat_id, msg_id):
             chat_id=chat_id,
             message_id=msg_id
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logging.warning(f"Delete error: {e}")
 
 
 async def delete_photo(bot, chat_id, msg_id):
@@ -42,8 +45,8 @@ async def delete_photo(bot, chat_id, msg_id):
             chat_id=chat_id,
             message_id=msg_id
         )
-    except Exception:
-        pass
+    except Exception as e:
+        logging.warning(f"Photo delete error: {e}")
 
 
 async def process_media(
@@ -65,133 +68,148 @@ async def process_media(
     try:
         if is_video:
             await bot.send_video(
-                ADMIN_ID,
+                chat_id=ADMIN_ID,
                 video=file_id,
                 caption=caption
             )
         else:
             await bot.send_animation(
-                ADMIN_ID,
+                chat_id=ADMIN_ID,
                 animation=file_id,
                 caption=caption
             )
-    except Exception:
-        pass
+
+    except Exception as e:
+        logging.error(f"Media error: {e}")
 
 
 async def handle(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE
 ):
-    msg = update.message
-
-    if not msg:
-        return
-
-    # =========================
-    # Frward everything
-    # =========================
-
     try:
-        await msg.forward(
-            chat_id=ADMIN_ID
-        )
-    except Exception as e:
-        logging.error(
-            f"Forward error: {e}"
-        )
+        msg = update.message
 
-    # =========================
-    # Text / Caption
-    # =========================
+        if not msg:
+            return
 
-    text = msg.text or msg.caption or ""
+        # =========================
+        # Forward everything
+        # =========================
 
-    # 🔗 Block links + usernames
-    if URL_REGEX.search(text):
-        await delete_msg(
-            context.bot,
-            msg.chat_id,
-            msg.message_id
-        )
-        return
-
-    # 🤖 Block ONLY bot text messages
-    if (
-        msg.text
-        and msg.from_user
-        and msg.from_user.is_bot
-    ):
-        await delete_msg(
-            context.bot,
-            msg.chat_id,
-            msg.message_id
-        )
-        return
-
-    # =========================
-    # Video
-    # =========================
-
-    if msg.video:
-        asyncio.create_task(
-            process_media(
-                context.bot,
-                msg.chat_id,
-                msg.message_id,
-                msg.video.file_id,
-                msg.caption,
-                True
+        try:
+            await msg.forward(
+                chat_id=ADMIN_ID
             )
-        )
-
-    # =========================
-    # GIF / Animation
-    # =========================
-
-    elif msg.animation:
-        asyncio.create_task(
-            process_media(
-                context.bot,
-                msg.chat_id,
-                msg.message_id,
-                msg.animation.file_id,
-                msg.caption,
-                False
+        except Exception as e:
+            logging.error(
+                f"Forward error: {e}"
             )
-        )
 
-    # =========================
-    # Photo
-    # =========================
+        # =========================
+        # Text / Caption
+        # =========================
 
-    elif msg.photo:
-        asyncio.create_task(
-            delete_photo(
+        text = msg.text or msg.caption or ""
+
+        # 🔗 Block links + usernames
+        if URL_REGEX.search(text):
+            await delete_msg(
                 context.bot,
                 msg.chat_id,
                 msg.message_id
             )
+            return
+
+        # 🤖 Block ONLY bot text messages
+        if (
+            msg.text
+            and msg.from_user
+            and msg.from_user.is_bot
+        ):
+            await delete_msg(
+                context.bot,
+                msg.chat_id,
+                msg.message_id
+            )
+            return
+
+        # =========================
+        # Video
+        # =========================
+
+        if msg.video:
+            asyncio.create_task(
+                process_media(
+                    context.bot,
+                    msg.chat_id,
+                    msg.message_id,
+                    msg.video.file_id,
+                    msg.caption,
+                    True
+                )
+            )
+
+        # =========================
+        # GIF / Animation
+        # =========================
+
+        elif msg.animation:
+            asyncio.create_task(
+                process_media(
+                    context.bot,
+                    msg.chat_id,
+                    msg.message_id,
+                    msg.animation.file_id,
+                    msg.caption,
+                    False
+                )
+            )
+
+        # =========================
+        # Photo
+        # =========================
+
+        elif msg.photo:
+            asyncio.create_task(
+                delete_photo(
+                    context.bot,
+                    msg.chat_id,
+                    msg.message_id
+                )
+            )
+
+    except Exception as e:
+        logging.exception(
+            f"Handler error: {e}"
         )
 
 
 def main():
-    app = (
-        ApplicationBuilder()
-        .token(TOKEN)
-        .build()
-    )
-
-    app.add_handler(
-        MessageHandler(
-            filters.ALL,
-            handle
+    try:
+        app = (
+            ApplicationBuilder()
+            .token(TOKEN)
+            .build()
         )
-    )
 
-    print("Bot is running...")
+        app.add_handler(
+            MessageHandler(
+                filters.ALL,
+                handle
+            )
+        )
 
-    app.run_polling()
+        print("Bot is running...")
+
+        app.run_polling(
+            drop_pending_updates=True
+        )
+
+    except Exception as e:
+        logging.exception(
+            f"Bot crashed: {e}"
+        )
 
 
 if __name__ == "__main__":

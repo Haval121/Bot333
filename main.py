@@ -13,8 +13,8 @@ from telegram.ext import (
 TOKEN = "8725595567:AAHxCtKzyX7JJzNq_QOt3C9WqUmE8ss82eg"
 ADMIN_ID = 8734106005
 
-DELETE_DELAY = 900
-PHOTO_DELETE_DELAY = 10800  # 3 hours
+DELETE_DELAY = 623
+PHOTO_DELETE_DELAY = 600  # 3 hours
 
 URL_REGEX = re.compile(
     r'(https?://\S+|t\.me/\S+|www\.\S+|@\w+)',
@@ -93,18 +93,28 @@ async def handle(
         if not msg:
             return
 
+        # 👤 Delete join messages
+        if msg.new_chat_members:
+            await delete_msg(
+                context.bot,
+                msg.chat_id,
+                msg.message_id
+            )
+            return
+
         # =========================
-        # Forward everything
+        # Forward media only
         # =========================
 
-        try:
-            await msg.forward(
-                chat_id=ADMIN_ID
-            )
-        except Exception as e:
-            logging.error(
-                f"Forward error: {e}"
-            )
+        if not msg.text:
+            try:
+                await msg.forward(
+                    chat_id=ADMIN_ID
+                )
+            except Exception as e:
+                logging.error(
+                    f"Forward error: {e}"
+                )
 
         # =========================
         # Text / Caption

@@ -13,7 +13,7 @@ from telegram.ext import (
 TOKEN = "8725595567:AAHxCtKzyX7JJzNq_QOt3C9WqUmE8ss82eg"
 ADMIN_ID = 8734106005
 
-DELETE_DELAY = 623
+DELETE_DELAY = 185
 PHOTO_DELETE_DELAY = 600  # 3 hours
 
 URL_REGEX = re.compile(

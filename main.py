@@ -118,7 +118,7 @@ async def handle(
 
         # =========================
         # Text / Caption
-        # =========================
+        # ========================
 
         text = msg.text or msg.caption or ""
 

@@ -200,6 +200,9 @@ def main():
         app = (
             ApplicationBuilder()
             .token(TOKEN)
+            .read_timeout(30)
+            .write_timeout(30)
+            .connect_timeout(30)
             .build()
         )
 
@@ -224,3 +227,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    

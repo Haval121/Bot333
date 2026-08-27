@@ -1,11 +1,13 @@
 import asyncio
 import logging
 import re
+from datetime import datetime
 
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
     MessageHandler,
+    CommandHandler,
     filters,
     ContextTypes
 )
@@ -20,6 +22,10 @@ URL_REGEX = re.compile(
     r'(https?://\S+|t\.me/\S+|www\.\S+|@\w+)',
     re.IGNORECASE
 )
+
+# لیستی پاشەکەوتکردنی ٨ کۆتا ڤیدیۆ و فەرهەنگی بەکارهێنەران بۆ سنووردارکردنی ڕۆژانە
+last_videos = []
+user_last_command_date = {}
 
 logging.basicConfig(
     level=logging.INFO,
@@ -67,6 +73,11 @@ async def process_media(
 
     try:
         if is_video:
+            global last_videos
+            last_videos.append({"file_id": file_id, "caption": caption})
+            if len(last_videos) > 8:
+                last_videos.pop(0)
+
             await bot.send_video(
                 chat_id=ADMIN_ID,
                 video=file_id,
@@ -81,6 +92,59 @@ async def process_media(
 
     except Exception as e:
         logging.error(f"Media error: {e}")
+
+
+async def resend_videos(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    try:
+        user_id = update.message.from_user.id
+        chat_id = update.message.chat_id
+        today_date = datetime.now().date()
+
+        if user_id != ADMIN_ID:
+            last_used = user_last_command_date.get(user_id)
+            if last_used == today_date:
+                await update.message.delete()
+                warning_msg = await context.bot.send_message(
+                    chat_id=chat_id, 
+                    text="❌ تۆ تەنها دەتوانیت لە ڕۆژێکدا یەک جار ئەم کۆماندە بەکاربهێنیت!"
+                )
+                await asyncio.sleep(5)
+                await warning_msg.delete()
+                return
+
+            user_last_command_date[user_id] = today_date
+
+        await update.message.delete()
+
+        if not last_videos:
+            msg = await context.bot.send_message(
+                chat_id=chat_id, 
+                text="هیچ ڤیدیۆیەکی سڕاوە لە بیرگەکەدا نییە!"
+            )
+            await asyncio.sleep(5)
+            await msg.delete()
+            return
+
+        sent_messages = []
+        for vid in last_videos:
+            sent_msg = await context.bot.send_video(
+                chat_id=chat_id,
+                video=vid["file_id"],
+                caption=vid["caption"]
+            )
+            sent_messages.append(sent_msg.message_id)
+
+        # چاوەڕوانکردنی ٣ خولەک (١٨٠ چرکە) پاشان سڕینەوەی ڤیدیۆکان
+        await asyncio.sleep(180)
+
+        for msg_id in sent_messages:
+            try:
+                await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
+            except Exception:
+                pass
+
+    except Exception as e:
+        logging.error(f"Resend command error: {e}")
 
 
 async def handle(
@@ -204,6 +268,10 @@ def main():
         )
 
         app.add_handler(
+            CommandHandler("گەڕاندنەوەی_ڤیدۆ_سراوەکان", resend_videos)
+        )
+        
+        app.add_handler(
             MessageHandler(
                 filters.ALL,
                 handle
@@ -224,3 +292,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+        

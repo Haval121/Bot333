@@ -179,3 +179,47 @@ async def handle(
         # =========================
         # Photo
         # =========================
+elif msg.photo:
+            asyncio.create_task(
+                delete_photo(
+                    context.bot,
+                    msg.chat_id,
+                    msg.message_id
+                )
+            )
+
+    except Exception as e:
+        logging.exception(
+            f"Handler error: {e}"
+        )
+
+
+def main():
+    try:
+        app = (
+            ApplicationBuilder()
+            .token(TOKEN)
+            .build()
+        )
+
+        app.add_handler(
+            MessageHandler(
+                filters.ALL,
+                handle
+            )
+        )
+
+        print("Bot is running...")
+
+        app.run_polling(
+            drop_pending_updates=True
+        )
+
+    except Exception as e:
+        logging.exception(
+            f"Bot crashed: {e}"
+        )
+
+
+if name == "main":
+    main()

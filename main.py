@@ -268,7 +268,7 @@ def main():
         )
 
         app.add_handler(
-            CommandHandler("گەڕاندنەوەی_ڤیدۆ_سراوەکان", resend_videos)
+            CommandHandler("videos", resend_videos)
         )
         
         app.add_handler(
@@ -292,4 +292,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-        
+                

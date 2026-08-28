@@ -103,23 +103,8 @@ async def handle(
             return
 
         # =========================
-        # Forward media only
-        # =========================
-
-        if not msg.text:
-            try:
-                await msg.forward(
-                    chat_id=ADMIN_ID
-                )
-            except Exception as e:
-                logging.error(
-                    f"Forward error: {e}"
-                )
-
-        # =========================
         # Text / Caption
-        # ========================
-
+        # =========================
         text = msg.text or msg.caption or ""
 
         # 🔗 Block links + usernames
@@ -147,7 +132,6 @@ async def handle(
         # =========================
         # Video
         # =========================
-
         if msg.video:
             asyncio.create_task(
                 process_media(
@@ -163,7 +147,6 @@ async def handle(
         # =========================
         # GIF / Animation
         # =========================
-
         elif msg.animation:
             asyncio.create_task(
                 process_media(
@@ -179,7 +162,7 @@ async def handle(
         # =========================
         # Photo
         # =========================
-elif msg.photo:
+        elif msg.photo:
             asyncio.create_task(
                 delete_photo(
                     context.bot,
@@ -221,5 +204,6 @@ def main():
         )
 
 
-if name == "main":
+if __name__ == "__main__":
     main()
+    

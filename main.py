@@ -10,7 +10,7 @@ from telegram.ext import (
     ContextTypes
 )
 
-TOKEN = "8725595567:AAGo5csE6V6jFEJI5XLEYPtfcOscaTDZNLc"
+TOKEN = "8725595567:AAHdeaVF1c28LmH5EZ75hup3de-FbyIoafU"
 ADMIN_ID = 8734106005
 
 DELETE_DELAY = 185

@@ -1,4 +1,6 @@
 import asyncio
+import json
+import os
 from pyrogram import Client, filters
 from pyrogram.enums import ChatType
 from pyrogram.errors import FloodWait
@@ -9,7 +11,8 @@ BOT_TOKEN = "9245634242:AAHYqDhd4wtme2E2MN0-xAQTBmAZ13_CQ4I"
 
 SOURCE_CHANNEL = "mbvkfx"
 SOURCE_MESSAGE_ID = 3
-INTERVAL_SECONDS = 25 * 60  # 25 خولەک (1500 چرکە)
+INTERVAL_SECONDS = 25 * 60  # 25 خولەک
+GROUPS_FILE = "groups.json"
 
 app = Client(
     "auto_sender_bot",
@@ -18,32 +21,51 @@ app = Client(
     bot_token=BOT_TOKEN,
 )
 
-# لیستێک بۆ هەڵگرتنی ID گروپەکان
-known_groups: set[int] = set()
+
+def load_groups() -> set[int]:
+    if os.path.exists(GROUPS_FILE):
+        try:
+            with open(GROUPS_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return set(int(x) for x in data)
+        except Exception:
+            return set()
+    return set()
 
 
-async def collect_groups():
-    """کۆکردنەوەی گروپەکان لە ڕێگەی دیالۆگەکانەوە."""
-    async for dialog in app.get_dialogs():
-        if dialog.chat.type in (ChatType.GROUP, ChatType.SUPERGROUP):
-            known_groups.add(dialog.chat.id)
+def save_groups(groups: set[int]) -> None:
+    with open(GROUPS_FILE, "w", encoding="utf-8") as f:
+        json.dump(list(groups), f)
+
+
+known_groups: set[int] = load_groups()
+
+
+def add_group(chat_id: int, chat_type: ChatType | None) -> None:
+    if chat_type in (ChatType.GROUP, ChatType.SUPERGROUP):
+        if chat_id not in known_groups:
+            known_groups.add(chat_id)
+            save_groups(known_groups)
+            print(f"گروپی نوێ زیاد کرا: {chat_id}")
 
 
 @app.on_message(filters.group)
-async def track_group(_, message):
-    """هەر کاتێک نامەیەک لە گروپێک بێت، ID گروپەکە زیاد دەکات."""
-    known_groups.add(message.chat.id)
+async def track_group_message(_, message):
+    add_group(message.chat.id, message.chat.type)
+
+
+@app.on_chat_member_updated()
+async def track_group_member(_, update):
+    if update.chat:
+        add_group(update.chat.id, update.chat.type)
 
 
 async def send_to_all_groups():
-    """ناردنی کۆپی نامەکە بە بێ ناوی سەرچاوە بۆ هەموو گروپەکان."""
     while True:
         await asyncio.sleep(INTERVAL_SECONDS)
 
-        await collect_groups()
-
         if not known_groups:
-            print("هیچ گروپێک نەدۆزرایەوە بۆ ناردن.")
+            print("هیچ گروپێک تۆمار نەکراوە. نامەیەک یان /start لە گروپەکان بنێرە.")
             continue
 
         print(f"دەستپێکردنی ناردن بۆ {len(known_groups)} گروپ...")
@@ -56,7 +78,7 @@ async def send_to_all_groups():
                     message_id=SOURCE_MESSAGE_ID,
                 )
                 print(f"نێردرا بۆ گروپ: {chat_id}")
-                await asyncio.sleep(1.5)  # کەمێک وەستان بۆ خۆپاراستن لە FloodWait
+                await asyncio.sleep(1.5)
             except FloodWait as e:
                 print(f"FloodWait بۆ {e.value} چرکە...")
                 await asyncio.sleep(e.value + 1)
@@ -67,13 +89,9 @@ async def send_to_all_groups():
 async def main():
     await app.start()
     print("بۆتەکە بە سەرکەوتوویی کار دەکات...")
-    await collect_groups()
     asyncio.create_task(send_to_all_groups())
-
-    # هێشتنەوەی بۆت بە چالاکی
     await asyncio.Event().wait()
 
 
 if __name__ == "__main__":
     app.run(main())
-    

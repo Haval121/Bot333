@@ -62,28 +62,27 @@ async def track_group_member(_, update):
 
 async def send_to_all_groups():
     while True:
-        await asyncio.sleep(INTERVAL_SECONDS)
-
         if not known_groups:
             print("هیچ گروپێک تۆمار نەکراوە. نامەیەک یان /start لە گروپەکان بنێرە.")
-            continue
+        else:
+            print(f"دەستپێکردنی ناردن بۆ {len(known_groups)} گروپ...")
 
-        print(f"دەستپێکردنی ناردن بۆ {len(known_groups)} گروپ...")
+            for chat_id in list(known_groups):
+                try:
+                    await app.copy_message(
+                        chat_id=chat_id,
+                        from_chat_id=SOURCE_CHANNEL,
+                        message_id=SOURCE_MESSAGE_ID,
+                    )
+                    print(f"نێردرا بۆ گروپ: {chat_id}")
+                    await asyncio.sleep(1.5)
+                except FloodWait as e:
+                    print(f"FloodWait بۆ {e.value} چرکە...")
+                    await asyncio.sleep(e.value + 1)
+                except Exception as err:
+                    print(f"هەڵە لە ناردن بۆ {chat_id}: {err}")
 
-        for chat_id in list(known_groups):
-            try:
-                await app.copy_message(
-                    chat_id=chat_id,
-                    from_chat_id=SOURCE_CHANNEL,
-                    message_id=SOURCE_MESSAGE_ID,
-                )
-                print(f"نێردرا بۆ گروپ: {chat_id}")
-                await asyncio.sleep(1.5)
-            except FloodWait as e:
-                print(f"FloodWait بۆ {e.value} چرکە...")
-                await asyncio.sleep(e.value + 1)
-            except Exception as err:
-                print(f"هەڵە لە ناردن بۆ {chat_id}: {err}")
+        await asyncio.sleep(INTERVAL_SECONDS)
 
 
 async def main():
@@ -95,3 +94,4 @@ async def main():
 
 if __name__ == "__main__":
     app.run(main())
+    

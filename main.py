@@ -19,7 +19,7 @@ REPLY_MARKUP = InlineKeyboardMarkup(
     [
         [
             InlineKeyboardButton(
-                "فۆروارد بکە ↗️",
+                "ناردن 🔐🔞5/0",
                 switch_inline_query="",
             )
         ]

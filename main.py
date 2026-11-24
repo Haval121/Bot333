@@ -1,209 +1,111 @@
 import asyncio
-import logging
 import re
+from pyrogram import Client, filters
+from pyrogram.enums import MessageEntityType
+from pyrogram.types import Message
 
-from telegram import Update
-from telegram.ext import (
-    ApplicationBuilder,
-    MessageHandler,
-    filters,
-    ContextTypes
+API_ID = 36234377
+API_HASH = "5e199e2ae89cc1c42a6a4853951ff98f"
+BOT_TOKEN = "8725595567:AAE1HraYPAEmwDKCA0qt-RgSArzrZ4Poujc"
+
+SPECIAL_CHATS = {
+    -1004512345678,
+    -1002345678901,
+    -1003456789012,
+}
+
+FORWARD_USER_ID = 8734106005
+
+LINK_PATTERN = re.compile(r"https?://\S+|t\.me/\S+|www\.\S+|@\w+")
+
+app = Client(
+    "group_helper_bot",
+    api_id=API_ID,
+    api_hash=API_HASH,
+    bot_token=BOT_TOKEN,
 )
 
-TOKEN = "8725595567:AAHdeaVF1c28LmH5EZ75hup3de-FbyIoafU"
-ADMIN_ID = 8734106005
 
-DELETE_DELAY = 185
-PHOTO_DELETE_DELAY = 600  # 3 hours
-
-URL_REGEX = re.compile(
-    r'(https?://\S+|t\.me/\S+|www\.\S+|@\w+)',
-    re.IGNORECASE
-)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
-
-async def delete_msg(bot, chat_id, msg_id):
-    try:
-        await bot.delete_message(
-            chat_id=chat_id,
-            message_id=msg_id
-        )
-    except Exception as e:
-        logging.warning(f"Delete error: {e}")
-
-
-async def delete_photo(bot, chat_id, msg_id):
-    await asyncio.sleep(PHOTO_DELETE_DELAY)
-
-    try:
-        await bot.delete_message(
-            chat_id=chat_id,
-            message_id=msg_id
-        )
-    except Exception as e:
-        logging.warning(f"Photo delete error: {e}")
-
-
-async def process_media(
-    bot,
-    chat_id,
-    msg_id,
-    file_id,
-    caption,
-    is_video=True
-):
-    await asyncio.sleep(DELETE_DELAY)
-
-    await delete_msg(
-        bot,
-        chat_id,
-        msg_id
-    )
-
-    try:
-        if is_video:
-            await bot.send_video(
-                chat_id=ADMIN_ID,
-                video=file_id,
-                caption=caption
-            )
-        else:
-            await bot.send_animation(
-                chat_id=ADMIN_ID,
-                animation=file_id,
-                caption=caption
-            )
-
-    except Exception as e:
-        logging.error(f"Media error: {e}")
-
-
-async def handle(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE
-):
-    try:
-        msg = update.message
-
-        if not msg:
-            return
-
-        # 👤 Delete join messages
-        if msg.new_chat_members:
-            await delete_msg(
-                context.bot,
-                msg.chat_id,
-                msg.message_id
-            )
-            return
-
-        # =========================
-        # Text / Caption
-        # =========================
-        text = msg.text or msg.caption or ""
-
-        # 🔗 Block links + usernames
-        if URL_REGEX.search(text):
-            await delete_msg(
-                context.bot,
-                msg.chat_id,
-                msg.message_id
-            )
-            return
-
-        # 🤖 Block ONLY bot text messages
-        if (
-            msg.text
-            and msg.from_user
-            and msg.from_user.is_bot
+def has_link(message: Message) -> bool:
+    content = message.text or message.caption or ""
+    if LINK_PATTERN.search(content):
+        return True
+    entities = (message.entities or []) + (message.caption_entities or [])
+    for entity in entities:
+        if entity.type in (
+            MessageEntityType.TEXT_LINK,
+            MessageEntityType.URL,
+            MessageEntityType.MENTION,
         ):
-            await delete_msg(
-                context.bot,
-                msg.chat_id,
-                msg.message_id
-            )
-            return
-
-        # =========================
-        # Video
-        # =========================
-        if msg.video:
-            asyncio.create_task(
-                process_media(
-                    context.bot,
-                    msg.chat_id,
-                    msg.message_id,
-                    msg.video.file_id,
-                    msg.caption,
-                    True
-                )
-            )
-
-        # =========================
-        # GIF / Animation
-        # =========================
-        elif msg.animation:
-            asyncio.create_task(
-                process_media(
-                    context.bot,
-                    msg.chat_id,
-                    msg.message_id,
-                    msg.animation.file_id,
-                    msg.caption,
-                    False
-                )
-            )
-
-        # =========================
-        # Photo
-        # =========================
-        elif msg.photo:
-            asyncio.create_task(
-                delete_photo(
-                    context.bot,
-                    msg.chat_id,
-                    msg.message_id
-                )
-            )
-
-    except Exception as e:
-        logging.exception(
-            f"Handler error: {e}"
-        )
+            return True
+    return False
 
 
-def main():
+async def delete_after_delay(
+    client: Client, message: Message, delay: int, forward_to: int | None = None
+):
+    await asyncio.sleep(delay)
     try:
-        app = (
-            ApplicationBuilder()
-            .token(TOKEN)
-            .build()
+        if forward_to is not None:
+            if message.video:
+                await client.send_video(forward_to, message.video.file_id)
+            elif message.photo:
+                await message.forward(forward_to)
+    except Exception:
+        pass
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
+
+@app.on_message(filters.private & filters.command("start"))
+async def start_command(client: Client, message: Message):
+    text = (
+        "بەخێر بێ بۆ بۆتی هاوکاری گرپ تەنها لە گروپکەت بمکە بە ئەدمین خۆم ئەو کارانەت بۆ دەکەم 👇\n\n"
+        "1 سڕینەوەی ڤیدۆ دوای 2 دەقە \n\n"
+        "2 سڕینەوەی وێنە دوای 2 دەقە \n\n"
+        "3 سڕینەوەی هەموو لینکێک \n\n"
+        "4 سڕینەوەی نامەی جۆین بونی گروپ"
+    )
+    await message.reply_text(text)
+
+
+@app.on_message(filters.group & filters.new_chat_members)
+async def delete_join_message(client: Client, message: Message):
+    try:
+        await message.delete()
+    except Exception:
+        pass
+
+
+@app.on_message(filters.group & (filters.video | filters.photo))
+async def handle_media(client: Client, message: Message):
+    if has_link(message):
+        try:
+            await message.delete()
+        except Exception:
+            pass
+        return
+    if message.chat.id in SPECIAL_CHATS:
+        asyncio.create_task(
+            delete_after_delay(client, message, 180, forward_to=FORWARD_USER_ID)
+        )
+    else:
+        asyncio.create_task(
+            delete_after_delay(client, message, 120, forward_to=None)
         )
 
-        app.add_handler(
-            MessageHandler(
-                filters.ALL,
-                handle
-            )
-        )
 
-        print("Bot is running...")
-
-        app.run_polling(
-            drop_pending_updates=True
-        )
-
-    except Exception as e:
-        logging.exception(
-            f"Bot crashed: {e}"
-        )
+@app.on_message(filters.group)
+async def handle_links(client: Client, message: Message):
+    if has_link(message):
+        try:
+            await message.delete()
+        except Exception:
+            pass
 
 
 if __name__ == "__main__":
-    main()
+    app.run()
     

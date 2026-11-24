@@ -4,6 +4,7 @@ import os
 from pyrogram import Client, filters
 from pyrogram.enums import ChatType
 from pyrogram.errors import FloodWait
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 
 API_ID = 36234377
 API_HASH = "5e199e2ae89cc1c42a6a4853951ff98f"
@@ -11,8 +12,19 @@ BOT_TOKEN = "9245634242:AAHYqDhd4wtme2E2MN0-xAQTBmAZ13_CQ4I"
 
 SOURCE_CHANNEL = "mbvkfx"
 SOURCE_MESSAGE_ID = 3
-INTERVAL_SECONDS = 25 * 60  # 25 خولەک
+INTERVAL_SECONDS = 5 * 60  # 5 خولەک
 GROUPS_FILE = "groups.json"
+
+REPLY_MARKUP = InlineKeyboardMarkup(
+    [
+        [
+            InlineKeyboardButton(
+                "فۆروارد بکە ↗️",
+                switch_inline_query="",
+            )
+        ]
+    ]
+)
 
 app = Client(
     "auto_sender_bot",
@@ -73,6 +85,7 @@ async def send_to_all_groups():
                         chat_id=chat_id,
                         from_chat_id=SOURCE_CHANNEL,
                         message_id=SOURCE_MESSAGE_ID,
+                        reply_markup=REPLY_MARKUP,
                     )
                     print(f"نێردرا بۆ گروپ: {chat_id}")
                     await asyncio.sleep(1.5)
@@ -94,4 +107,3 @@ async def main():
 
 if __name__ == "__main__":
     app.run(main())
-    

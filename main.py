@@ -14,13 +14,14 @@ SOURCE_CHANNEL = "mbvkfx"
 SOURCE_MESSAGE_ID = 3
 INTERVAL_SECONDS = 5 * 60  # 5 خولەک
 GROUPS_FILE = "groups.json"
+LAST_MESSAGES_FILE = "last_messages.json"
 
 REPLY_MARKUP = InlineKeyboardMarkup(
     [
         [
             InlineKeyboardButton(
                 "نارن 🔐🔞  0/5",
-                switch_inline_query="https://t.me/mbvkfx/3",
+                url="https://t.me/mbvkfx/3",
             )
         ]
     ]
@@ -50,7 +51,24 @@ def save_groups(groups: set[int]) -> None:
         json.dump(list(groups), f)
 
 
+def load_last_messages() -> dict[int, int]:
+    if os.path.exists(LAST_MESSAGES_FILE):
+        try:
+            with open(LAST_MESSAGES_FILE, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                return {int(k): int(v) for k, v in data.items()}
+        except Exception:
+            return {}
+    return {}
+
+
+def save_last_messages(messages: dict[int, int]) -> None:
+    with open(LAST_MESSAGES_FILE, "w", encoding="utf-8") as f:
+        json.dump({str(k): v for k, v in messages.items()}, f)
+
+
 known_groups: set[int] = load_groups()
+last_sent_messages: dict[int, int] = load_last_messages()
 
 
 def add_group(chat_id: int, chat_type: ChatType | None) -> None:
@@ -72,28 +90,43 @@ async def track_group_member(_, update):
         add_group(update.chat.id, update.chat.type)
 
 
+async def send_to_single_group(chat_id: int) -> None:
+    prev_msg_id = last_sent_messages.get(chat_id)
+    if prev_msg_id:
+        try:
+            await app.delete_messages(chat_id=chat_id, message_ids=prev_msg_id)
+        except Exception:
+            pass
+
+    while True:
+        try:
+            sent = await app.copy_message(
+                chat_id=chat_id,
+                from_chat_id=SOURCE_CHANNEL,
+                message_id=SOURCE_MESSAGE_ID,
+                reply_markup=REPLY_MARKUP,
+            )
+            last_sent_messages[chat_id] = sent.id
+            save_last_messages(last_sent_messages)
+            print(f"نێردرا بۆ گروپ: {chat_id}")
+            break
+        except FloodWait as e:
+            print(f"FloodWait بۆ {e.value} چرکە...")
+            await asyncio.sleep(e.value + 1)
+        except Exception as err:
+            print(f"هەڵە لە ناردن بۆ {chat_id}: {err}")
+            break
+
+
 async def send_to_all_groups():
     while True:
         if not known_groups:
             print("هیچ گروپێک تۆمار نەکراوە. نامەیەک یان /start لە گروپەکان بنێرە.")
         else:
-            print(f"دەستپێکردنی ناردن بۆ {len(known_groups)} گروپ...")
-
-            for chat_id in list(known_groups):
-                try:
-                    await app.copy_message(
-                        chat_id=chat_id,
-                        from_chat_id=SOURCE_CHANNEL,
-                        message_id=SOURCE_MESSAGE_ID,
-                        reply_markup=REPLY_MARKUP,
-                    )
-                    print(f"نێردرا بۆ گروپ: {chat_id}")
-                    await asyncio.sleep(1.5)
-                except FloodWait as e:
-                    print(f"FloodWait بۆ {e.value} چرکە...")
-                    await asyncio.sleep(e.value + 1)
-                except Exception as err:
-                    print(f"هەڵە لە ناردن بۆ {chat_id}: {err}")
+            print(f"دەستپێکردنی ناردن لە یەک کاتدا بۆ {len(known_groups)} گروپ...")
+            await asyncio.gather(
+                *(send_to_single_group(chat_id) for chat_id in list(known_groups))
+            )
 
         await asyncio.sleep(INTERVAL_SECONDS)
 

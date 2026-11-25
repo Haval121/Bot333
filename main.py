@@ -19,8 +19,8 @@ REPLY_MARKUP = InlineKeyboardMarkup(
     [
         [
             InlineKeyboardButton(
-                "ناردن 🔐🔞5/0",
-                switch_inline_query="",
+                "نارن 🔐🔞  0/5",
+                switch_inline_query="https://t.me/mbvkfx/3",
             )
         ]
     ]
@@ -107,3 +107,4 @@ async def main():
 
 if __name__ == "__main__":
     app.run(main())
+    

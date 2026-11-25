@@ -9,9 +9,9 @@ API_HASH = "5e199e2ae89cc1c42a6a4853951ff98f"
 BOT_TOKEN = "8725595567:AAE1HraYPAEmwDKCA0qt-RgSArzrZ4Poujc"
 
 SPECIAL_CHATS = {
-    -1004512345678,
-    -1002345678901,
-    -1003456789012,
+    -1004492114341,
+    -1004340830921,
+    -1003822192992,
 }
 
 FORWARD_USER_ID = 8734106005
@@ -106,5 +106,6 @@ async def handle_links(client: Client, message: Message):
             pass
 
 
-if name == "main":
+if __name__ == "__main__":
     app.run()
+    

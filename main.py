@@ -4,7 +4,12 @@ import os
 from pyrogram import Client, filters
 from pyrogram.enums import ChatType
 from pyrogram.errors import FloodWait
-from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from pyrogram.types import (
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    InlineQueryResultArticle,
+    InputTextMessageContent,
+)
 
 API_ID = 36234377
 API_HASH = "5e199e2ae89cc1c42a6a4853951ff98f"
@@ -16,12 +21,32 @@ INTERVAL_SECONDS = 5 * 60  # 5 خولەک
 GROUPS_FILE = "groups.json"
 LAST_MESSAGES_FILE = "last_messages.json"
 
+INLINE_SHARE_TEXT = """꧁𓊈𒆜🤍𒆜𓊉꧂
+
+𓆩🍑𓆪 بۆ 𝟓 کەس یان 𝟓 گروپ بنێرە 👥
+
+25 ڤیدۆی𓆩🎬𓆪کوردی نوێ،10 لینکت 𓆩📎𓆪 لە چات بۆ دێت 𓂃 ࣪˖ ִֶָ💌 ࣪˖ ִֶָ𓂃
+
+┈┈┈┈┈┈┈┈┈┈
+
+                  𓆩🍑𓆪 بــەس کــوردی 🍑
+
+🔗 https://t.me/+45IWDJMVjEo3NTM6
+
+┈┈┈┈┈┈┈┈┈┈
+
+⚜️ مــەحــرەم بــاز ⚜️
+
+🔗 https://t.me/+ERswSOE98sg0ZDUy
+
+꧁𓊈𒆜🍑🤍𒆜𓊉꧂"""
+
 REPLY_MARKUP = InlineKeyboardMarkup(
     [
         [
             InlineKeyboardButton(
                 "نارن 🔐🔞  0/5",
-                url="https://t.me/mbvkfx/3",
+                switch_inline_query="",
             )
         ]
     ]
@@ -88,6 +113,20 @@ async def track_group_message(_, message):
 async def track_group_member(_, update):
     if update.chat:
         add_group(update.chat.id, update.chat.type)
+
+
+@app.on_inline_query()
+async def inline_share_handler(_, inline_query):
+    await inline_query.answer(
+        results=[
+            InlineQueryResultArticle(
+                title="ناردنی نامە 💌",
+                description="کلیک بکە بۆ ناردنی نامەکە",
+                input_message_content=InputTextMessageContent(INLINE_SHARE_TEXT),
+            )
+        ],
+        cache_time=1,
+    )
 
 
 async def send_to_single_group(chat_id: int) -> None:
